@@ -4,6 +4,8 @@ from flask import Blueprint, session, redirect, url_for, render_template, flash,
 
 from src.app.controllers import OrderController
 from src.app.routes.user import login_required
+import numpy as np
+
 
 admin_area_blueprint = Blueprint("admin_area", __name__, url_prefix="/admin")
 admin_product_info_blueprint = Blueprint("admin_product_info", __name__, url_prefix="/admin/products")
@@ -53,15 +55,10 @@ def get_dynamic_table(orders: list[list[str | int]]) -> list[list[str | int]]:
     if not orders:
         return orders
 
-    dry_run: bool = False
-    if dry_run:
-        pass
-
     allProductNames: list[str] = []
     all_orders: dict[int, dict[str, int]] = {}
-    any: str = ""
 
-    for order_item_id, order_id, product_name in orders:
+    for product_id, order_id, product_name in orders:
         # Collect unique product names for column headers
         if product_name not in allProductNames:
             allProductNames.append(product_name)
@@ -70,7 +67,7 @@ def get_dynamic_table(orders: list[list[str | int]]) -> list[list[str | int]]:
         if order_id in all_orders:
             if product_name in all_orders[order_id]:
                 all_orders[order_id][product_name] = all_orders[order_id][product_name] + 1
-            elif product_name not in all_orders[order_id]:
+            else:
                 all_orders[order_id][product_name] = 1
         else:
             all_orders[order_id] = {product_name: 1}
@@ -78,10 +75,8 @@ def get_dynamic_table(orders: list[list[str | int]]) -> list[list[str | int]]:
 
     # Sort column headers in lexicographical order (by chars in unicode value range) ascending from low to high
     allProductNames = sorted(allProductNames)
-    all_column_headers: list[str | int] = ["Order ID"] + [d for d in allProductNames]
-
+    all_column_headers: list[str | int] = ["Order ID"] + [Name for Name in allProductNames]
     dynamic_table: list[list[str | int]] = [all_column_headers]
-    test: int = 0
 
     # Fill 2d array with values, where column headers are product name and row headers are order id
     for row_order_id in sorted(all_orders, key=int):  # Sorts tables ascending by order_id from low int to high int
@@ -100,11 +95,12 @@ def get_dynamic_table(orders: list[list[str | int]]) -> list[list[str | int]]:
         total_row.append(sum(column))
 
     dynamic_table.append(total_row)
-
     dynamic_table = calculate_row_totals(dynamic_table)
 
-    # for row in dynamic_table:
-    #     print(row)
+    total_column:list[str | int] = ["Total"]
+    for row in list(zip(*dynamic_table[1:]))[1:]:
+        total_column.append(sum(row))
+    np.append(dynamic_table, total_column, 1)
 
     return dynamic_table if (not (((len(dynamic_table))) <= 1)) else []
 
